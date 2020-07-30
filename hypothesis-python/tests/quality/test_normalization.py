@@ -13,18 +13,29 @@
 #
 # END HEADER
 
+import math
 from itertools import islice
 
 import pytest
 
-from hypothesis import strategies as st
+from hypothesis import assume, strategies as st
+from hypothesis.errors import UnsatisfiedAssumption
 from hypothesis.internal.conjecture.shrinking import dfas
 from tests.quality.test_shrinking_order import iter_values
 
 
+@st.composite
+def non_integer_floats(draw):
+    result = draw(st.floats())
+    assume(math.isfinite(result) and result != int(result))
+    return result
+
+
 @pytest.mark.parametrize("n", range(10, -1, -1))
 @pytest.mark.parametrize(
-    "strategy", [st.floats(), st.text(), st.datetimes(),], ids=repr
+    "strategy",
+    [non_integer_floats(), st.floats(), st.text(), st.datetimes(),],
+    ids=repr,
 )
 def test_common_strategies_normalize_small_values(strategy, n, request):
     if request.config.getoption("--hypothesis-learn-to-normalize"):
@@ -37,7 +48,10 @@ def test_common_strategies_normalize_small_values(strategy, n, request):
     excluded = list(map(repr, islice(iter_values(strategy, unique_by=repr), n)))
 
     def test_function(data):
-        v = data.draw(strategy)
+        try:
+            v = data.draw(strategy)
+        except UnsatisfiedAssumption:
+            data.mark_invalid()
         data.output = repr(v)
         if repr(v) not in excluded:
             data.mark_interesting()
