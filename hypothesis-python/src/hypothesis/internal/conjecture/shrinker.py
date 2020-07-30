@@ -35,6 +35,7 @@ from hypothesis.internal.conjecture.junkdrawer import (
     replace_all,
 )
 from hypothesis.internal.conjecture.shrinking import Float, Integer, Lexical, Ordering
+from hypothesis.internal.conjecture.shrinking.dfas import SHRINKING_DFAS
 
 if False:
     from typing import Dict  # noqa
@@ -336,6 +337,42 @@ class Shrinker:
             self.add_new_pass(name)
         return self.passes_by_name[name]
 
+    @derived_value
+    def match_cache(self):
+        return {}
+
+    def matching_regions(self, dfa):
+        """Returns all pairs (u, v) such that self.buffer[u:v] is accepted
+        by this DFA."""
+
+        try:
+            return self.match_cache[dfa]
+        except KeyError:
+            pass
+        stack = [(0, dfa.start, range(len(self.buffer)))]
+
+        results = []
+
+        while stack:
+            k, state, indices = stack.pop()
+
+            if dfa.is_accepting(state):
+                results.extend([(i, i + k) for i in indices])
+
+            next_by_c = {}
+
+            for i in indices:
+                if i + k < len(self.buffer):
+                    c = self.buffer[i + k]
+                    if c not in next_by_c:
+                        next_by_c[c] = (dfa.transition(state, c), [])
+                    next_by_c[c][1].append(i)
+            for next_state, next_indices in next_by_c.values():
+                stack.append((k + 1, next_state, next_indices))
+        results.sort(key=lambda t: (t[1] - t[0], t[1]))
+        self.match_cache[dfa] = results
+        return results
+
     @property
     def calls(self):
         """Return the number of calls that have been made to the underlying
@@ -510,6 +547,7 @@ class Shrinker:
                 "redistribute_block_pairs",
                 "lower_blocks_together",
             ]
+            + [dfa_replacement(n) for n in SHRINKING_DFAS]
         )
 
     @derived_value
@@ -1565,6 +1603,21 @@ def block_program(self, chooser, description):
     )
 
 
+@shrink_pass_family
+def dfa_replacement(self, chooser, dfa_name):
+    """Use one of our previously learned shrinking DFAs to reduce
+    the current test case. This works by finding a match of the DFA in the
+    current buffer that is not already minimal and attempting to replace it
+    with the minimal string matching that DFA.
+    """
+
+    dfa = SHRINKING_DFAS[dfa_name]
+    matching_regions = self.matching_regions(dfa)
+    minimal = next(dfa.all_matching_strings())
+    u, v = chooser.choose(
+        matching_regions, lambda t: self.buffer[t[0] : t[1]] != minimal
+    )
+    self.incorporate_new_buffer(self.buffer[:u] + minimal + self.buffer[v:])
 
 
 @attr.s(slots=True, eq=False)

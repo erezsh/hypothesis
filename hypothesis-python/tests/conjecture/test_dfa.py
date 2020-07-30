@@ -14,7 +14,7 @@
 # END HEADER
 
 from hypothesis import given, note, reject, settings, strategies as st
-from hypothesis.internal.conjecture.dfa import ConcreteDFA
+from hypothesis.internal.conjecture.dfa import DEAD, ConcreteDFA
 
 
 def test_enumeration_when_sizes_do_not_agree():
@@ -43,6 +43,21 @@ def test_enumeration_of_very_long_strings():
 def test_max_length_of_empty_dfa_is_zero():
     dfa = ConcreteDFA([{}], {0})
     assert dfa.max_length(dfa.start) == 0
+
+
+def test_mixed_dfa_initialization():
+    d = ConcreteDFA([[(2, 1)], [(0, 5, 2)], {4: 0, 3: 1},], {0})
+
+    assert d.transition(0, 2) == 1
+    assert d.transition(0, 3) == DEAD
+
+    for n in range(6):
+        assert d.transition(1, n) == 2
+    assert d.transition(1, 6) == DEAD
+
+    assert d.transition(2, 4) == 0
+    assert d.transition(2, 3) == 1
+    assert d.transition(2, 5) == DEAD
 
 
 @st.composite
