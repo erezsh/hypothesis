@@ -349,27 +349,9 @@ class Shrinker:
             return self.match_cache[dfa]
         except KeyError:
             pass
-        stack = [(0, dfa.start, range(len(self.buffer)))]
-
-        results = []
-
-        while stack:
-            k, state, indices = stack.pop()
-
-            if dfa.is_accepting(state):
-                results.extend([(i, i + k) for i in indices])
-
-            next_by_c = {}
-
-            for i in indices:
-                if i + k < len(self.buffer):
-                    c = self.buffer[i + k]
-                    if c not in next_by_c:
-                        next_by_c[c] = (dfa.transition(state, c), [])
-                    next_by_c[c][1].append(i)
-            for next_state, next_indices in next_by_c.values():
-                stack.append((k + 1, next_state, next_indices))
+        results = dfa.all_matching_regions(self.buffer)
         results.sort(key=lambda t: (t[1] - t[0], t[1]))
+        assert all(dfa.matches(self.buffer[u:v]) for u, v in results)
         self.match_cache[dfa] = results
         return results
 
@@ -1617,7 +1599,15 @@ def dfa_replacement(self, chooser, dfa_name):
     u, v = chooser.choose(
         matching_regions, lambda t: self.buffer[t[0] : t[1]] != minimal
     )
-    self.incorporate_new_buffer(self.buffer[:u] + minimal + self.buffer[v:])
+    p = self.buffer[u:v]
+    assert sort_key(minimal) < sort_key(p)
+    replaced = self.buffer[:u] + minimal + self.buffer[v:]
+
+    assert sort_key(replaced) < sort_key(self.buffer)
+
+    self.consider_new_buffer(replaced)
+
+    print("BOOP", dfa_name, u, v, list(p), list(minimal), self.cached_test_function(replaced).status)
 
 
 @attr.s(slots=True, eq=False)

@@ -84,6 +84,30 @@ class DFA:
             i = self.transition(i, c)
         return self.is_accepting(i)
 
+
+    def all_matching_regions(self, string):
+        stack = [(0, self.start, range(len(string)))]
+
+        results = []
+
+        while stack:
+            k, state, indices = stack.pop()
+
+            if self.is_accepting(state):
+                results.extend([(i, i + k) for i in indices])
+
+            next_by_c = {}
+
+            for i in indices:
+                if i + k < len(string):
+                    c = string[i + k]
+                    if c not in next_by_c:
+                        next_by_c[c] = (self.transition(state, c), [])
+                    next_by_c[c][1].append(i)
+            for next_state, next_indices in next_by_c.values():
+                stack.append((k + 1, next_state, next_indices))
+        return results
+
     @cached
     def max_length(self, i):
         """Returns the maximum length of a string that is

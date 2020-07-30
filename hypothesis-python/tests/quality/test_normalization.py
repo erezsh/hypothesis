@@ -31,19 +31,22 @@ def non_integer_floats(draw):
     return result
 
 
+@pytest.fixture
+def normalize_kwargs(request):
+    if request.config.getoption("--hypothesis-learn-to-normalize"):
+        return {'allowed_to_update': True, 'required_successes':  1000}
+    else:
+        return {'allowed_to_update': False, 'required_successes':  10}
+    
+
+
 @pytest.mark.parametrize("n", range(10, -1, -1))
 @pytest.mark.parametrize(
     "strategy",
     [non_integer_floats(), st.floats(), st.text(), st.datetimes(),],
     ids=repr,
 )
-def test_common_strategies_normalize_small_values(strategy, n, request):
-    if request.config.getoption("--hypothesis-learn-to-normalize"):
-        allowed_to_update = True
-        required_successes = 1000
-    else:
-        allowed_to_update = True
-        required_successes = 10
+def test_common_strategies_normalize_small_values(strategy, n, normalize_kwargs):
 
     excluded = list(map(repr, islice(iter_values(strategy, unique_by=repr), n)))
 
@@ -59,6 +62,28 @@ def test_common_strategies_normalize_small_values(strategy, n, request):
     dfas.normalize(
         repr(strategy),
         test_function,
-        allowed_to_update=allowed_to_update,
-        required_successes=required_successes,
+        **normalize_kwargs
+    )
+
+
+@pytest.mark.parametrize(
+    "strategy",
+    [st.emails(), st.complex_numbers()],
+    ids=repr,
+)
+def test_harder_strategies_normalize_to_minimal(strategy, normalize_kwargs):
+    import random; random.seed(0);
+
+    def test_function(data):
+        try:
+            v = data.draw(strategy)
+        except UnsatisfiedAssumption:
+            data.mark_invalid()
+        data.output = repr(v)
+        data.mark_interesting()
+
+    dfas.normalize(
+        repr(strategy),
+        test_function,
+        **normalize_kwargs
     )
