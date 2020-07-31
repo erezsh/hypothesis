@@ -57,7 +57,7 @@ def update_learned_dfas():
     lines.append("")
 
     for k, v in sorted(SHRINKING_DFAS.items()):
-        lines.append("SHRINKING_DFAS[%r] = %r #  noqa: E501" % (k, v))
+        lines.append("SHRINKING_DFAS[%r] = %r  # noqa: E501" % (k, v))
 
     lines.append("")
     lines.append("# fmt: on")
@@ -182,7 +182,9 @@ def learn_a_new_dfa(runner, u, v, predicate):
             done = False
             while not done:
                 assert length <= learner.dfa.max_length(learner.dfa.start)
-                for x in learner.dfa.all_matching_strings_of_length(length):
+                # This loop will never exit normally because we unconditionally
+                # break out of it, hence the lack of branch.
+                for x in learner.dfa.all_matching_strings_of_length(length):  # pragma: no branch
                     assert not is_valid_core(x)
                     n = learner.generation
                     learner.learn(x)

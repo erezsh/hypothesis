@@ -67,13 +67,18 @@ def dfas(draw):
     states = draw(st.integers(1, 20))
 
     a_state = st.integers(0, states - 1)
+    a_byte = st.integers(0, 255)
 
     start = draw(a_state)
     accepting = draw(st.sets(a_state, min_size=1))
-    transitions = [{} for _ in range(states)]
 
-    for _ in range(draw(st.integers(0, states * 10))):
-        transitions[draw(a_state)][draw(st.integers(0, 255))] = draw(a_state)
+    transitions = [
+        draw(st.one_of(
+            st.lists(st.tuples(a_byte, a_state) | st.tuples(a_byte, a_byte, a_state).map(lambda t: (t[1], t[0], t[2]) if t[0] > t[1] else t)),
+            st.dictionaries(a_byte, a_state),
+        ))
+        for _ in range(states)
+    ]
 
     return ConcreteDFA(transitions, accepting, start)
 
@@ -101,6 +106,7 @@ def test_canonicalised_matches_same_strings(dfa, via_repr):
     )
 
 
+@settings(max_examples=20)
 @given(dfas())
 def test_has_string_of_max_length(dfa):
     length = dfa.max_length(dfa.start)
@@ -108,3 +114,21 @@ def test_has_string_of_max_length(dfa):
     assume(not dfa.is_dead(dfa.start))
 
     assert dfa.count_strings(dfa.start, length) > 0
+
+
+def test_converts_long_tables_to_dicts():
+    dfa = ConcreteDFA([[(0, 0), (1, 1), (2, 2), (3, 1), (4, 0)], [(0, 0)], []], {2})
+    list(dfa.transitions(0))
+
+    assert isinstance(dfa._ConcreteDFA__transitions[0], dict)
+
+
+@settings(max_examples=20)
+@given(dfas(), dfas())
+def test_dfa_with_different_string_is_not_equivalent(x, y):
+    assume(not x.is_dead(x.start))
+
+    s = next(x.all_matching_strings())
+    assume(not y.matches(s))
+
+    assert not x.equivalent(y)

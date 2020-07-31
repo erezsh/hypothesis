@@ -314,9 +314,6 @@ class DFA:
             if self.is_accepting(self_state) != other.is_accepting(other_state):
                 return False
 
-            if self.is_dead(self_state) != other.is_dead(other_state):
-                return False
-
             union(self_key, other_key)
 
             for c in alphabet:
