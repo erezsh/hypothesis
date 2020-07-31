@@ -301,6 +301,10 @@ class Shrinker:
         self.passes_by_name = {}
         self.passes = []
 
+        # Extra DFAs that may be installed. This is used solely for
+        # testing and learning purposes.
+        self.extra_dfas = {}
+
     @derived_value
     def cached_calculations(self):
         return {}
@@ -1593,7 +1597,11 @@ def dfa_replacement(self, chooser, dfa_name):
     with the minimal string matching that DFA.
     """
 
-    dfa = SHRINKING_DFAS[dfa_name]
+    try:
+        dfa = SHRINKING_DFAS[dfa_name]
+    except KeyError:
+        dfa = self.extra_dfas[dfa_name]
+
     matching_regions = self.matching_regions(dfa)
     minimal = next(dfa.all_matching_strings())
     u, v = chooser.choose(
@@ -1606,8 +1614,6 @@ def dfa_replacement(self, chooser, dfa_name):
     assert sort_key(replaced) < sort_key(self.buffer)
 
     self.consider_new_buffer(replaced)
-
-    print("BOOP", dfa_name, u, v, list(p), list(minimal), self.cached_test_function(replaced).status)
 
 
 @attr.s(slots=True, eq=False)
