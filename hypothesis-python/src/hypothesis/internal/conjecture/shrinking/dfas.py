@@ -184,7 +184,9 @@ def learn_a_new_dfa(runner, u, v, predicate):
                 assert length <= learner.dfa.max_length(learner.dfa.start)
                 # This loop will never exit normally because we unconditionally
                 # break out of it, hence the lack of branch.
-                for x in learner.dfa.all_matching_strings_of_length(length):  # pragma: no branch
+                for x in learner.dfa.all_matching_strings_of_length(
+                    length
+                ):  # pragma: no branch
                     assert not is_valid_core(x)
                     n = learner.generation
                     learner.learn(x)

@@ -73,10 +73,17 @@ def dfas(draw):
     accepting = draw(st.sets(a_state, min_size=1))
 
     transitions = [
-        draw(st.one_of(
-            st.lists(st.tuples(a_byte, a_state) | st.tuples(a_byte, a_byte, a_state).map(lambda t: (t[1], t[0], t[2]) if t[0] > t[1] else t)),
-            st.dictionaries(a_byte, a_state),
-        ))
+        draw(
+            st.one_of(
+                st.lists(
+                    st.tuples(a_byte, a_state)
+                    | st.tuples(a_byte, a_byte, a_state).map(
+                        lambda t: (t[1], t[0], t[2]) if t[0] > t[1] else t
+                    )
+                ),
+                st.dictionaries(a_byte, a_state),
+            )
+        )
         for _ in range(states)
     ]
 
