@@ -48,7 +48,7 @@ def test_max_length_of_empty_dfa_is_zero():
 
 
 def test_mixed_dfa_initialization():
-    d = ConcreteDFA([[(2, 1)], [(0, 5, 2)], {4: 0, 3: 1},], {0})
+    d = ConcreteDFA([[(2, 1)], [(0, 5, 2)], {4: 0, 3: 1}], {0})
 
     assert d.transition(0, 2) == 1
     assert d.transition(0, 3) == DEAD

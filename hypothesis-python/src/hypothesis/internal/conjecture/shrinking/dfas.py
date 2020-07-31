@@ -57,7 +57,7 @@ def update_learned_dfas():
     lines.append("")
 
     for k, v in sorted(SHRINKING_DFAS.items()):
-        lines.append("SHRINKING_DFAS[%r] = %r # noqa: E501" % (k, v))
+        lines.append("SHRINKING_DFAS[%r] = %r #  noqa: E501" % (k, v))
 
     lines.append("")
     lines.append("# fmt: on")
@@ -331,7 +331,7 @@ def normalize(
         name = (
             base_name
             + "-"
-            + hashlib.sha1(repr(new_dfa).encode("utf-8")).hexdigest()[:10]
+            + hashlib.sha256(repr(new_dfa).encode("utf-8")).hexdigest()[:10]
         )
 
         # If there is a name collision this DFA should already be being
