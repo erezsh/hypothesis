@@ -84,7 +84,6 @@ class DFA:
             i = self.transition(i, c)
         return self.is_accepting(i)
 
-
     def all_matching_regions(self, string):
         stack = [(0, self.start, range(len(string)))]
 
@@ -268,7 +267,7 @@ class DFA:
                 accepting.add(i)
             reverse_state_map.append(state)
             state_map[state] = i
-            for _, j in self.__raw_transitions(state):
+            for _, j in self.transitions(state):
                 if j in seen:
                     continue
                 seen.add(j)
@@ -281,7 +280,6 @@ class DFA:
         result = ConcreteDFA(transitions, accepting)
         assert self.equivalent(result)
         return result
-
 
     def equivalent(self, other):
         table = {}
@@ -307,8 +305,8 @@ class DFA:
         while queue:
             self_state, other_state = queue.popleft()
 
-            self_key = (self, self_state) 
-            other_key = (other, other_state) 
+            self_key = (self, self_state)
+            other_key = (other, other_state)
 
             if find(self_key) == find(other_key):
                 continue
@@ -322,7 +320,9 @@ class DFA:
             union(self_key, other_key)
 
             for c in alphabet:
-                queue.append((self.transition(self_state, c), other.transition(other_state, c)))
+                queue.append(
+                    (self.transition(self_state, c), other.transition(other_state, c))
+                )
         return True
 
 

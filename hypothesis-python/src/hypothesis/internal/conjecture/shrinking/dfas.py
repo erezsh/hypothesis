@@ -14,11 +14,12 @@
 # END HEADER
 
 import hashlib
+import math
 from itertools import islice
 
 from hypothesis import HealthCheck, settings
 from hypothesis.errors import HypothesisException
-from hypothesis.internal.conjecture.data import Status
+from hypothesis.internal.conjecture.data import ConjectureResult, Status
 from hypothesis.internal.conjecture.dfa.lstar import LStar
 from hypothesis.internal.conjecture.shrinking.learned_dfas import (
     SHRINKING_DFAS,
@@ -73,7 +74,7 @@ def learn_a_new_dfa(runner, u, v, predicate):
     allow the shrinker to normalise them better. ``u`` and ``v``
     should not currently shrink to the test case when calling
     this function."""
-    from hypothesis.internal.conjecture.shrinker import sort_key, dfa_replacement
+    from hypothesis.internal.conjecture.shrinker import dfa_replacement, sort_key
 
     assert predicate(runner.cached_test_function(u))
     assert predicate(runner.cached_test_function(v))
@@ -158,6 +159,41 @@ def learn_a_new_dfa(runner, u, v, predicate):
         learner.learn(u_core)
         learner.learn(v_core)
 
+        # L* has a tendency to learn DFAs which wrap around to
+        # the beginning. We don't want to it to do that unless
+        # it's accrate, so we use these as examples to show
+        # check going around the DFA twice.
+        learner.learn(u_core * 2)
+        learner.learn(v_core * 2)
+
+        if learner.generation != prev:
+            continue
+
+        if learner.dfa.max_length(learner.dfa.start) > len(v_core):
+            # The language we learn is finite and bounded above
+            # by the length of v_core. This is important in order
+            # to keep our shrink passes reasonable efficient -
+            # otherwise they can match far too much. So whenever
+            # we learn a DFA that could match a string longer
+            # than len(v_core) we fix it by finding the first
+            # string longer than v_core and learning that as
+            # a correction.
+            length = len(v_core) + 1
+            done = False
+            while not done:
+                assert length <= learner.dfa.max_length(learner.dfa.start)
+                for x in learner.dfa.all_matching_strings_of_length(length):
+                    assert not is_valid_core(x)
+                    n = learner.generation
+                    learner.learn(x)
+                    assert not learner.dfa.matches(x)
+                    assert learner.generation > n
+                    done = True
+                    break
+                length += 1
+
+        assert not learner.dfa.matches(v_core * 2)
+
         # We mostly care about getting the right answer on the
         # minimal test case, but because we're doing this offline
         # anyway we might as well spend a little more time trying
@@ -170,10 +206,9 @@ def learn_a_new_dfa(runner, u, v, predicate):
     # DFA so we can save it for later.
     new_dfa = learner.dfa.canonicalise()
 
-    shrinker = runner.new_shrinker(
-        runner.cached_test_function(v),
-        predicate
-    )
+    assert math.isfinite(new_dfa.max_length(new_dfa.start))
+
+    shrinker = runner.new_shrinker(runner.cached_test_function(v), predicate)
 
     assert (len(prefix), len(v) - len(suffix)) in shrinker.matching_regions(new_dfa)
 
@@ -188,8 +223,9 @@ def learn_a_new_dfa(runner, u, v, predicate):
     return new_dfa
 
 
-def fully_shrink(runner, buf, predicate):
-    test_case = runner.cached_test_function(buf)
+def fully_shrink(runner, test_case, predicate):
+    if not isinstance(test_case, ConjectureResult):
+        test_case = runner.cached_test_function(test_case)
     while True:
         shrunk = runner.shrink(test_case, predicate)
         if shrunk.buffer == test_case.buffer:
@@ -229,7 +265,6 @@ def normalize(
     """
     # Need import inside the function to avoid circular imports
     from hypothesis.internal.conjecture.engine import BUFFER_SIZE, ConjectureRunner
-    from hypothesis.internal.conjecture.shrinker import sort_key, dfa_replacement
 
     runner = ConjectureRunner(
         test_function,
@@ -265,7 +300,9 @@ def normalize(
             runner.shrink(attempt, shrinking_predicate)
             continue
 
-        previous = fully_shrink(runner, runner.interesting_examples[target], shrinking_predicate)
+        previous = fully_shrink(
+            runner, runner.interesting_examples[target], shrinking_predicate
+        )
         current = fully_shrink(runner, attempt, shrinking_predicate)
 
         if current.buffer == previous.buffer:

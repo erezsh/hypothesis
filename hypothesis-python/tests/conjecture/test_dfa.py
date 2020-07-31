@@ -14,7 +14,8 @@
 # END HEADER
 
 import math
-from hypothesis import given, note, reject, settings, strategies as st, assume
+
+from hypothesis import assume, given, note, reject, settings, strategies as st
 from hypothesis.internal.conjecture.dfa import DEAD, ConcreteDFA
 
 
