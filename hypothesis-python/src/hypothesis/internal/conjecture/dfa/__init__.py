@@ -278,7 +278,52 @@ class DFA:
             {c: state_map[s] for c, s in self.transitions(t)} for t in reverse_state_map
         ]
 
-        return ConcreteDFA(transitions, accepting)
+        result = ConcreteDFA(transitions, accepting)
+        assert self.equivalent(result)
+        return result
+
+
+    def equivalent(self, other):
+        table = {}
+
+        def find(s):
+            trail = [s]
+            while trail[-1] in table and table[trail[-1]] != trail[-1]:
+                trail.append(table[trail[-1]])
+
+            for t in trail:
+                table[t] = trail[-1]
+
+            return trail[-1]
+
+        def union(s, t):
+            s = find(s)
+            t = find(t)
+            table[s] = t
+
+        alphabet = sorted(set(self.alphabet) | set(other.alphabet))
+
+        queue = deque([((self.start, other.start))])
+        while queue:
+            self_state, other_state = queue.popleft()
+
+            self_key = (self, self_state) 
+            other_key = (other, other_state) 
+
+            if find(self_key) == find(other_key):
+                continue
+
+            if self.is_accepting(self_state) != other.is_accepting(other_state):
+                return False
+
+            if self.is_dead(self_state) != other.is_dead(other_state):
+                return False
+
+            union(self_key, other_key)
+
+            for c in alphabet:
+                queue.append((self.transition(self_state, c), other.transition(other_state, c)))
+        return True
 
 
 DEAD = "DEAD"

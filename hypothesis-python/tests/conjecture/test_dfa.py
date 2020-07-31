@@ -13,7 +13,8 @@
 #
 # END HEADER
 
-from hypothesis import given, note, reject, settings, strategies as st
+import math
+from hypothesis import given, note, reject, settings, strategies as st, assume
 from hypothesis.internal.conjecture.dfa import DEAD, ConcreteDFA
 
 
@@ -97,3 +98,12 @@ def test_canonicalised_matches_same_strings(dfa, via_repr):
     assert dfa.count_strings(dfa.start, len(minimal)) == canon.count_strings(
         canon.start, len(minimal)
     )
+
+
+@given(dfas())
+def test_has_string_of_max_length(dfa):
+    length = dfa.max_length(dfa.start)
+    assume(math.isfinite(length))
+    assume(not dfa.is_dead(dfa.start))
+
+    assert dfa.count_strings(dfa.start, length) > 0
