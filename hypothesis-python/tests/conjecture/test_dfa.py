@@ -15,7 +15,7 @@
 
 import math
 
-from hypothesis import assume, given, note, reject, settings, strategies as st
+from hypothesis import assume, example, given, note, reject, settings, strategies as st
 from hypothesis.internal.conjecture.dfa import DEAD, ConcreteDFA
 
 
@@ -139,3 +139,14 @@ def test_dfa_with_different_string_is_not_equivalent(x, y):
     assume(not y.matches(s))
 
     assert not x.equivalent(y)
+
+
+@example(x=b"", y=b"\0", z=b"\0")
+@given(x=st.binary(), y=st.binary(min_size=1), z=st.binary())
+def test_all_matching_regions_include_all_matches(x, y, z):
+    y_matcher = ConcreteDFA([{c: i + 1} for i, c in enumerate(y)] + [[]], {len(y)})
+    assert y_matcher.matches(y)
+
+    s = x + y + z
+
+    assert (len(x), len(x) + len(y)) in y_matcher.all_matching_regions(s)
