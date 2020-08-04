@@ -13,6 +13,7 @@
 #
 # END HEADER
 
+import os
 import sys
 from contextlib import contextmanager
 
@@ -77,7 +78,7 @@ def called_by_shrinker():
     frame = sys._getframe(0)
     while frame:
         fname = frame.f_globals.get("__file__", "")
-        if fname.endswith("/shrinker.py"):
+        if os.path.basename(fname) == "shrinker.py":
             return True
         frame = frame.f_back
     return False
