@@ -166,6 +166,11 @@ class DFA:
     def all_matching_strings_of_length(self, k):
         """Yields all matching strings whose length is ``k``, in ascending
         lexicographic order."""
+        if k == 0:
+            if self.is_accepting(self.start):
+                yield b""
+            return
+
         if self.count_strings(self.start, k) == 0:
             return
 
@@ -229,15 +234,12 @@ class DFA:
                     if self.count_strings(states[-1], k - len(path)) > 0:
                         break
 
-    def all_matching_strings(self):
+    def all_matching_strings(self, min_length=0):
         """Iterate over all strings matched by this automaton
         in shortlex-ascending order."""
-        if self.is_accepting(self.start):
-            yield b""
-
         # max_length might be infinite, hence the while loop
         max_length = self.max_length(self.start)
-        length = 1
+        length = min_length
         while length <= max_length:
             yield from self.all_matching_strings_of_length(length)
             length += 1

@@ -166,9 +166,6 @@ def learn_a_new_dfa(runner, u, v, predicate):
         learner.learn(u_core * 2)
         learner.learn(v_core * 2)
 
-        if learner.generation != prev:
-            continue
-
         if learner.dfa.max_length(learner.dfa.start) > len(v_core):
             # The language we learn is finite and bounded above
             # by the length of v_core. This is important in order
@@ -178,32 +175,21 @@ def learn_a_new_dfa(runner, u, v, predicate):
             # than len(v_core) we fix it by finding the first
             # string longer than v_core and learning that as
             # a correction.
-            length = len(v_core) + 1
-            done = False
-            while not done:
-                assert length <= learner.dfa.max_length(learner.dfa.start)
-                # This loop will never exit normally because we unconditionally
-                # break out of it, hence the lack of branch.
-                for x in learner.dfa.all_matching_strings_of_length(
-                    length
-                ):  # pragma: no branch
-                    assert not is_valid_core(x)
-                    n = learner.generation
-                    learner.learn(x)
-                    assert not learner.dfa.matches(x)
-                    assert learner.generation > n
-                    done = True
-                    break
-                length += 1
-
-        assert not learner.dfa.matches(v_core * 2)
-
-        # We mostly care about getting the right answer on the
-        # minimal test case, but because we're doing this offline
-        # anyway we might as well spend a little more time trying
-        # small examples to make sure the learner gets them right.
-        for x in islice(learner.dfa.all_matching_strings(), 10):
+            x = next(learner.dfa.all_matching_strings(min_length=len(v_core) + 1))
+            assert not is_valid_core(x)
             learner.learn(x)
+            assert not learner.dfa.matches(x)
+            assert learner.generation > prev
+        else:
+            # We mostly care about getting the right answer on the
+            # minimal test case, but because we're doing this offline
+            # anyway we might as well spend a little more time trying
+            # small examples to make sure the learner gets them right.
+            for x in islice(learner.dfa.all_matching_strings(), 100):
+                if not is_valid_core(x):
+                    learner.learn(x)
+                    assert learner.generation != prev
+                    break
 
     # We've now successfully learned a DFA that works for shrinking
     # our failed normalisation further. Canonicalise it into a concrete
