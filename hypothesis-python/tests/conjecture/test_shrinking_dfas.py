@@ -19,6 +19,9 @@ from contextlib import contextmanager
 
 import pytest
 
+from hypothesis import settings
+from hypothesis.internal.conjecture.data import Status
+from hypothesis.internal.conjecture.engine import ConjectureRunner
 from hypothesis.internal.conjecture.shrinking import dfas
 
 TEST_DFA_NAME = "test name"
@@ -180,3 +183,27 @@ def test_makes_no_changes_if_already_normalized():
         after = dict(dfas.SHRINKING_DFAS)
 
         assert after == before
+
+
+def test_learns_to_bridge_only_two():
+    def test_function(data):
+        m = data.draw_bits(8)
+        n = data.draw_bits(8)
+
+        if (m, n) in ((10, 100), (2, 8)):
+            data.mark_interesting()
+
+    runner = ConjectureRunner(
+        test_function, settings=settings(database=None), ignore_limits=True
+    )
+
+    dfa = dfas.learn_a_new_dfa(
+        runner, [10, 100], [2, 8], lambda d: d.status == Status.INTERESTING,
+    )
+
+    assert dfa.max_length(dfa.start) == 2
+
+    assert list(map(list, dfa.all_matching_strings())) == [
+        [2, 8],
+        [10, 100],
+    ]
